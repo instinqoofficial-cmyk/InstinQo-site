@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const contactSubmitBtn = document.getElementById('contact-submit-btn');
     
     if (contactForm) {
-        contactForm.addEventListener('submit', (e) => {
+        contactForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             // UI Visual Loading State
@@ -190,14 +190,29 @@ document.addEventListener('DOMContentLoaded', () => {
             contactSubmitBtn.style.opacity = '0.7';
             contactSubmitBtn.disabled = true;
             
-            // Simulate API request delay
-            setTimeout(() => {
-                showToast('Message sent successfully! We will contact you soon.');
-                contactForm.reset();
+            // Send to Web3Forms
+            const formData = new FormData(contactForm);
+            formData.append("access_key", window.ENV.WEB3FORMS_ACCESS_KEY);
+            
+            try {
+                const response = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showToast('Message sent successfully! We will contact you soon.');
+                    contactForm.reset();
+                } else {
+                    showToast('Failed to send message. Please try again.', 'error');
+                }
+            } catch (error) {
+                showToast('Failed to send message. Please try again.', 'error');
+            } finally {
                 btnSpan.textContent = originalText;
                 contactSubmitBtn.style.opacity = '1';
                 contactSubmitBtn.disabled = false;
-            }, 1500);
+            }
         });
     }
 
@@ -408,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle Idea form submit
     if (modalForm) {
-        modalForm.addEventListener('submit', (e) => {
+        modalForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const submitBtn = document.getElementById('modal-submit-btn');
@@ -435,30 +450,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 timestamp: new Date().toISOString()
             };
             
-            // Simulate DB delay
-            setTimeout(() => {
-                // Save to LocalStorage
-                const ideas = JSON.parse(localStorage.getItem('instinqo_ideas') || '[]');
-                ideas.push(newIdea);
-                localStorage.setItem('instinqo_ideas', JSON.stringify(ideas));
+            // Save to LocalStorage
+            const ideas = JSON.parse(localStorage.getItem('instinqo_ideas') || '[]');
+            ideas.push(newIdea);
+            localStorage.setItem('instinqo_ideas', JSON.stringify(ideas));
+            
+            // Web3Forms Submission
+            const formData = new FormData();
+            formData.append("access_key", window.ENV.WEB3FORMS_ACCESS_KEY);
+            formData.append("subject", "New Idea Submission: " + title);
+            formData.append("name", name);
+            formData.append("email", email);
+            formData.append("category", category);
+            formData.append("title", title);
+            formData.append("description", description);
+            formData.append("impact", impact);
+            
+            try {
+                const response = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    body: formData
+                });
                 
-                // Show Success State
-                successTitle.textContent = title;
-                successCategory.textContent = category;
-                
-                modalForm.style.display = 'none';
-                modalSuccess.style.display = 'flex';
-                
-                showToast('Idea proposal saved locally!');
-                
+                if (response.ok) {
+                    // Show Success State
+                    successTitle.textContent = title;
+                    successCategory.textContent = category;
+                    
+                    modalForm.style.display = 'none';
+                    modalSuccess.style.display = 'flex';
+                    
+                    showToast('Idea proposal saved and sent!');
+                    
+                    // Reload submissions list
+                    loadLocalSubmissions();
+                } else {
+                    showToast('Failed to send email, but idea was saved locally.', 'error');
+                }
+            } catch (error) {
+                showToast('Failed to send email, but idea was saved locally.', 'error');
+            } finally {
                 // Reset button state
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = '1';
                 submitBtn.querySelector('span').textContent = 'Submit Idea Proposal';
-                
-                // Reload submissions list
-                loadLocalSubmissions();
-            }, 1200);
+            }
         });
     }
 
